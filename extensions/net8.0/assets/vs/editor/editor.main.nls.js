@@ -1,0 +1,1 @@
+Couldn't find the requested file /min/vs/editor/editor.main.nls.js in monaco-editor.

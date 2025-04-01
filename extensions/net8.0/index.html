@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full w-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React + Tailwind CSS Playground</title>
+    <script src="assets/react.development.js"></script>
+    <script src="assets/react-dom.development.js"></script>
+    <script src="assets/tailwindcss.js"></script>
+    <script src="assets/babel.min.js"></script>
+    <script src="assets/vconsole.min.js"></script>
+    <link href="assets/all.min.css" rel="stylesheet" type="text/css" />
+    <script src="assets/vs/loader.js"></script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 font-mono h-full w-full overflow-hidden flex flex-col">
+    <div id="app" class="h-full flex flex-col"></div>
+
+    <script type="text/babel">
+    // vConsole setup
+    new VConsole();
+
+    const {
+      useState,
+      useEffect,
+      useRef,
+      useCallback
+    } = React;
+
+    // Utility Functions
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast-message fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white p-2 rounded-md shadow-lg z-50 opacity-0 transition-opacity duration-300';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-100');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+
+    // Component: Editor
+    function EditorComponent({
+      language,
+      value,
+      onChange,
+      readOnly = false
+    }) {
+      const editorRef = useRef(null);
+      const monacoRef = useRef(null);
+
+      useEffect(() => {
+        require.config({
+          paths: {
+            'vs': 'assets/vs'
+          }
+        });
+
+        require(['vs/editor/editor.main'], () => {
+          monacoRef.current = monaco;
+          const editor = monaco.editor.create(editorRef.current, {
+            value: value,
+            language: language,
+            theme: 'vs-dark',
+            automaticLayout: true,
+            readOnly: readOnly,
+            "foldingStrategy": 'indentation'
+          });
+
+          editorRef.current.editor = editor;
+
+          editor.onDidChangeModelContent(() => {
+            onChange && onChange(editor.getValue());
+          });
+          sendMessage("code:load", {
+            language
+          });
+        });
+
+
+        return () => {
+          if (monacoRef.current && editorRef.current && editorRef.current.editor) {
+            editorRef.current.editor.dispose();
+          }
+        };
+      }, [language, readOnly]);
+
+      useEffect(() => {
+        if (monacoRef.current && editorRef.current && editorRef.current.editor) {
+          const editor = editorRef.current.editor;
+          const model = editor.getModel();
+
+          if (model) { // Check if the model exists
+            if (model.getValue() !== value) { // Only update if different
+              model.setValue(value);
+            }
+            monacoRef.current.editor.setModelLanguage(model, language);
+          }
+        }
+      }, [value, language]);
+
+
+      return <div ref={editorRef} className="h-full w-full" > </div>;
+    }
+
+    // Component: Button
+    function Button({
+      onClick,
+      children,
+      className = ''
+    }) {
+      return (
+        <button
+          className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded focus:outline-none focus:shadow-outline flex items-center ${className}`}
+          onClick={onClick}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    // Component: Secondary Button
+    function SecondaryButton({
+      onClick,
+      children,
+      className = ''
+    }) {
+      return (
+        <button
+          className={`bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-2 rounded focus:outline-none focus:shadow-outline flex items-center ${className}`}
+          onClick={onClick}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    // Component: View Button
+    function ViewButton({
+      onClick,
+      children,
+      active
+    }) {
+      const activeClass = active ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600';
+      return (
+        <button
+          className={`text-white font-bold py-1 px-2 rounded focus:outline-none focus:shadow-outline ${activeClass}`}
+          onClick={onClick}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    // Component: Result Area
+    function ResultArea({
+      result,
+      collapsed,
+      toggleConsole
+    }) {
+      const [consoleOutput, setConsoleOutput] = useState(result);
+
+      useEffect(() => {
+        setConsoleOutput(result);
+      }, [result]);
+
+      const resultContainerClasses = `
+        result-container
+        flex
+        flex-col
+        fixed
+        bottom-0
+        left-0
+        w-full
+        transition-all
+        duration-300
+        overflow-hidden
+        bg-gray-900
+        z-50
+        border-t
+        border-gray-700
+        ${collapsed ? 'h-10' : 'h-1/2'}
+    `;
+
+      return (
+        <div className={resultContainerClasses}>
+          <div
+            className="result-header flex justify-between items-center cursor-pointer p-2"
+            onClick={toggleConsole}
+          >
+            <h2 className="flex items-center gap-2 font-semibold">
+              <svg
+                className={`toggle-icon transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              Console Output
+            </h2>
+            <span id="console-status" className="text-sm">
+              {collapsed ? '(Click to expand)' : '(Click to collapse)'}
+            </span>
+          </div>
+          <div className="transition-opacity duration-300 flex-1">
+            <EditorComponent
+              language="text"
+              value={consoleOutput}
+              readOnly={true}
+              onChange={() => {}}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Component: App
+    function App() {
+      const [pythonCode, setPythonCode] = useState('');
+      const [htmlCode, setHtmlCode] = useState(``);
+      const [currentView, setCurrentView] = useState('both');
+      const [result, setResult] = useState('');
+      const [collapsed, setCollapsed] = useState(true);
+      const [showCopyPaste, setShowCopyPaste] = useState(true);
+      const [showPythonRun, setShowPythonRun] = useState(true);
+      const [showPreviewButton, setShowPreviewButton] = useState(true);
+
+      const pythonEditorRef = useRef(null);
+      const htmlEditorRef = useRef(null);
+      const previewFrameRef = useRef(null);
+
+      const toggleConsole = () => {
+        setCollapsed(!collapsed);
+      };
+
+      //Message
+      function sendMessage(message, data) {
+        const payload = {
+          message,
+          data
+        };
+        if (window.chrome?.webview) {
+          window.chrome.webview.postMessage(payload)
+        } else if (window.webkit?.messageHandlers.studioPro) {
+          window.webkit.messageHandlers.studioPro.postMessage(payload)
+        }
+      }
+      window.sendMessage = sendMessage;
+
+      function registerMessageListener(eventHandler) {
+        if (window.chrome?.webview) {
+          window.chrome.webview.addEventListener("message", (event) => eventHandler(event.data))
+          sendMessage("MessageListenerRegistered")
+        } else if (window.webkit?.messageHandlers.studioPro) {
+          window.WKPostMessage = (json) => {
+            const wkMessage = JSON.parse(json)
+            eventHandler(wkMessage)
+          }
+          sendMessage("MessageListenerRegistered")
+        }
+      }
+
+      function handlePythonResult(result) {
+        setResult(result);
+
+        if (result.includes("Error") || result.includes("Traceback")) {
+          setResult((prevResult) => `error ${prevResult}`);
+        } else {
+          setResult((prevResult) => `noerror ${prevResult}`);
+        }
+      }
+
+      function handleFrontendMessage(data) {
+        setResult((prevResult) => {
+          let result;
+          try {
+            const parsedData = JSON.parse(data);
+            result = JSON.stringify(parsedData, null, 4);
+          } catch (e) {
+            result = data;
+          }
+          return `[Frontend Message]:\n\n${result}`;
+        });
+        sendMessage("backend:message", data);
+      }
+
+      function handleBackendResponse(data) {
+        // 将响应发送到预览iframe
+        const previewFrame = previewFrameRef.current;
+        if (previewFrame && previewFrame.contentWindow) {
+          previewFrame.contentWindow.postMessage({
+            type: 'backendResponse',
+            data: data
+          }, '*');
+        }
+
+        setResult((prevResult) => {
+          let result;
+          try {
+            const parsedData = JSON.parse(data);
+            result = JSON.stringify(parsedData, null, 4);
+          } catch (e) {
+            result = data;
+          }
+          return `[Backend Response]:\n\n${result}`;
+        });
+      }
+
+      useEffect(() => {
+        function msgHandler(event) {
+          console.log('Received message:', event.message);
+
+          switch (event.message) {
+            case "python:exe":
+              handlePythonResult(event.data);
+              break;
+
+            case "python:code":
+              setPythonCode(event.data);
+              break;
+
+            case "html:code":
+              setHtmlCode(event.data);
+              break;
+
+            case "frontend:message":
+              handleFrontendMessage(event.data);
+              break;
+
+            case "backend:response":
+              handleBackendResponse(event.data);
+              break;
+          }
+        }
+        registerMessageListener(msgHandler);
+        updateButtonVisibility(currentView);
+      }, [currentView]);
+
+      const executeBackend = useCallback(() => {
+        sendMessage("python:exe", {
+          code: pythonCode
+        });
+      }, [pythonCode]);
+
+      const updatePreview = useCallback(() => {
+        // Remove the old iframe and create a new one
+        const previewContainer = document.getElementById('preview-container');
+        const oldFrame = document.getElementById('preview-frame');
+
+        if (oldFrame) {
+          oldFrame.remove();
+        }
+
+        // Create a new iframe
+        const newFrame = document.createElement('iframe');
+        newFrame.id = 'preview-frame';
+        newFrame.frameBorder = '0';
+        newFrame.style.width = '100%';
+        newFrame.style.height = '100%';
+        newFrame.style.border = '1px solid var(--editor-border)';
+        newFrame.style.borderRadius = 'var(--border-radius-sm)';
+        newFrame.style.background = 'white';
+
+        // Add the new iframe to the container
+        previewContainer.appendChild(newFrame);
+        previewFrameRef.current = newFrame;
+
+        // Write the HTML content to the new iframe
+        const previewDocument = newFrame.contentDocument || newFrame.contentWindow.document;
+        previewDocument.open();
+        previewDocument.write(htmlCode);
+        previewDocument.close();
+
+        showToast("Preview updated!");
+        switchView('preview');
+      }, [htmlCode]);
+
+
+      const switchView = (view) => {
+        setCurrentView(view);
+        updateButtonVisibility(view);
+      };
+
+      const updateButtonVisibility = (view) => {
+        setShowCopyPaste(view !== 'preview');
+        setShowPythonRun(view === 'python' || view === 'both');
+        setShowPreviewButton(view === 'html' || view === 'both' || view === 'preview');
+      };
+
+      const copyCode = (editor) => {
+        const code = editor === 'python' ? pythonCode : htmlCode;
+        navigator.clipboard.writeText(code).then(() => {
+          showToast(`${editor === 'python' ? 'Python' : 'HTML'} code copied!`);
+        }).catch(err => {
+          console.error('Failed to copy: ', err);
+          showToast("Copy failed");
+        });
+      };
+
+      const pasteCode = useCallback(() => {
+        let editor = currentView === 'python' ? 'python' : 'html';
+        navigator.clipboard.readText().then(text => {
+          if (editor === 'python') {
+            setPythonCode(text);
+          } else {
+            setHtmlCode(text);
+          }
+          showToast(`${editor === 'python' ? 'Python' : 'HTML'} code pasted!`);
+        }).catch(err => {
+          console.error('Failed to paste: ', err);
+          showToast("Paste failed");
+        });
+      }, [currentView]);
+
+      const getViewButtonStyle = (viewName) => {
+        return `text-white font-bold py-1 px-2 rounded focus:outline-none focus:shadow-outline ${currentView === viewName ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'}`
+      };
+
+      const editorContainerStyle = (viewName) => {
+        return `flex-1 min-w-0 h-full ${currentView === viewName || currentView === 'both' ? '' : 'hidden'}`
+      }
+
+      return (
+        <>
+          <div className="flex flex-col flex-1 min-w-0 mb-10">
+            <div className="flex items-center justify-between p-2">
+              <div className="space-x-1">
+                <button
+                  className={getViewButtonStyle('python')}
+                  onClick={() => switchView('python')}
+                >
+                  Python
+                </button>
+                <button
+                  className={getViewButtonStyle('html')}
+                  onClick={() => switchView('html')}
+                >
+                  HTML
+                </button>
+                <button
+                  className={getViewButtonStyle('both')}
+                  onClick={() => switchView('both')}
+                >
+                  Both
+                </button>
+                <button
+                  className={getViewButtonStyle('preview')}
+                  onClick={() => switchView('preview')}
+                >
+                  Preview
+                </button>
+              </div>
+              <div className="space-x-1 flex">
+                <div
+                  className="inline-flex space-x-1"
+                  style={{
+                    display: showCopyPaste ? 'flex' : 'none'
+                  }}
+                >
+                  <SecondaryButton
+                    onClick={() => copyCode(currentView === 'html' ? 'html' : 'python')}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      className="pr-1"
+                      strokeWidth="2"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    Copy
+                  </SecondaryButton>
+                  <SecondaryButton onClick={pasteCode}>
+                    <svg
+                      className="pr-1"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    </svg>
+                    Paste
+                  </SecondaryButton>
+                </div>
+                <div
+                  className="inline-block"
+                  style={{
+                    display: showPythonRun ? 'block' : 'none'
+                  }}
+                >
+                  <Button onClick={executeBackend}>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Run
+                  </Button>
+                </div>
+                <div
+                  className="inline-block"
+                  style={{
+                    display: showPreviewButton ? 'block' : 'none'
+                  }}
+                >
+                  <Button onClick={updatePreview}>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Preview
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-1 h-full min-h-0">
+              <div
+                id="python-editor-container"
+                className={editorContainerStyle('python')}
+              >
+                <EditorComponent
+                  language="python"
+                  value={pythonCode}
+                  onChange={setPythonCode}
+                />
+              </div>
+              <div
+                id="html-editor-container"
+                className={editorContainerStyle('html')}
+              >
+                <EditorComponent
+                  language="html"
+                  value={htmlCode}
+                  onChange={setHtmlCode}
+                />
+              </div>
+              <div
+                id="preview-container"
+                className={`flex-1 min-w-0 h-full bg-secondary-content/10 ${currentView === 'preview' ? '' : 'hidden'}`}
+              >
+                <iframe
+                  id="preview-frame"
+                  frameBorder="0"
+                  className="w-full h-full"
+                  ref={previewFrameRef}
+                />
+              </div>
+            </div>
+          </div>
+          <ResultArea
+            result={result}
+            collapsed={collapsed}
+            toggleConsole={toggleConsole}
+          />
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('app'));
+    root.render(<App />);
+    </script>
+</body>
+
+</html>
