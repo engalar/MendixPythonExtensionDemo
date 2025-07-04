@@ -261,8 +261,9 @@
 
       function registerMessageListener(eventHandler) {
         if (window.chrome?.webview) {
-          window.chrome.webview.addEventListener("message", (event) => eventHandler(event.data))
+          window.chrome.webview.addEventListener("message", eventHandler)
           sendMessage("MessageListenerRegistered")
+          return ()=> window.chrome.webview.removeEventListener("message", eventHandler)
         } else if (window.webkit?.messageHandlers.studioPro) {
           window.WKPostMessage = (json) => {
             const wkMessage = JSON.parse(json)
@@ -318,6 +319,12 @@
         });
       }
 
+      function handleLog(topic, message) {
+        setResult((prevResult) => {
+          return `${prevResult}\n[${topic}]: ${message}`;
+        });
+      }
+
       useEffect(() => {
         function msgHandler(event) {
           console.log('Received message:', event.message);
@@ -342,10 +349,21 @@
             case "backend:response":
               handleBackendResponse(event.data);
               break;
+            case "backend:info":
+            case "backend:error":
+              handleLog(event.message.slice(8),event.data);
+              break;
+            case "backend:clear":
+              setResult("");
+              break;
+            default:
+              break;
+          
           }
         }
-        registerMessageListener(msgHandler);
+        const h = registerMessageListener(e=>msgHandler(e.data));
         updateButtonVisibility(currentView);
+        return h;
       }, [currentView]);
 
       const executeBackend = useCallback(() => {

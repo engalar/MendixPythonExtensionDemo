@@ -9,7 +9,7 @@
       "MyCompany.MyProject.MendixExtension/1.0.0": {
         "dependencies": {
           "Eto.Forms": "2.9.0",
-          "Mendix.StudioPro.ExtensionsAPI": "10.21.1",
+          "Mendix.StudioPro.ExtensionsAPI": "10.23.0",
           "Newtonsoft.Json": "13.0.3",
           "pythonnet": "3.0.5"
         },
@@ -25,7 +25,7 @@
           }
         }
       },
-      "Mendix.StudioPro.ExtensionsAPI/10.21.1": {
+      "Mendix.StudioPro.ExtensionsAPI/10.23.0": {
         "dependencies": {
           "System.ComponentModel.Composition": "8.0.0",
           "System.Security.Cryptography.Pkcs": "8.0.0",
@@ -33,8 +33,8 @@
         },
         "runtime": {
           "lib/net8.0/Mendix.StudioPro.ExtensionsAPI.dll": {
-            "assemblyVersion": "10.21.1.0",
-            "fileVersion": "10.21.1.0"
+            "assemblyVersion": "10.23.0.0",
+            "fileVersion": "10.23.0.0"
           }
         }
       },
@@ -239,12 +239,12 @@
       "path": "eto.forms/2.9.0",
       "hashPath": "eto.forms.2.9.0.nupkg.sha512"
     },
-    "Mendix.StudioPro.ExtensionsAPI/10.21.1": {
+    "Mendix.StudioPro.ExtensionsAPI/10.23.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-2OxOXNZkI2abKTukK6BRgFP3Cn5PQs7/38qbesrRe2gz5cfc8AU1juNAU+wqGvyWpjSQq7H/m0AYq1ENo0w6Ww==",
-      "path": "mendix.studiopro.extensionsapi/10.21.1",
-      "hashPath": "mendix.studiopro.extensionsapi.10.21.1.nupkg.sha512"
+      "sha512": "sha512-6WbRgFzzrtDDBgLFl8rDPa7R0qsQBKEK48EqjC9vc9YFDCDfYYLEZKEWAYl1X5X8kZfkhrYGuPnpVnoXqzwmYQ==",
+      "path": "mendix.studiopro.extensionsapi/10.23.0",
+      "hashPath": "mendix.studiopro.extensionsapi.10.23.0.nupkg.sha512"
     },
     "Microsoft.CSharp/4.7.0": {
       "type": "package",
